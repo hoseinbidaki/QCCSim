@@ -6,18 +6,18 @@ Results are saved to a CSV file for analysis.
 import simpy
 from qiskit import QuantumCircuit
 import random
-import time
 import pandas as pd
 from datetime import datetime
-import os
 from pathlib import Path
 
 from src.qschedulers.cloud.orchestrator import Orchestrator
 from src.qschedulers.cloud.qnode import QuantumNode
 from src.qschedulers.cloud.qtask import QuantumTask
 from src.qschedulers.schedulers.round_robin import RoundRobinScheduler
+from src.qschedulers.schedulers.fan import FANScheduler
 from src.logger_config import setup_logger
 from qiskit_ibm_runtime.fake_provider import FakeHanoiV2, FakeBrisbane
+from src.qschedulers.datasets.mqtbench_loader import load_mqtbench_circuits, PRESET_SMALL
 
 logger = setup_logger()
 
@@ -40,7 +40,7 @@ def main():
     ]
     
     # Initialize scheduler and orchestrator
-    scheduler = RoundRobinScheduler()
+    scheduler = FANScheduler()
     orchestrator = Orchestrator(
         env=env,
         scheduler=scheduler,
@@ -49,13 +49,33 @@ def main():
         schedule_interval=10.0  # Schedule every 10 seconds
     )
     
-    # Create some sample tasks with different arrival times
+    # Load circuits from MQTBench (fallback to synthetic if loader unavailable)
+    try:
+        circuits = load_mqtbench_circuits(PRESET_SMALL)
+        if not circuits:
+            logger.warning("No circuits returned from MQTBench loader; falling back to synthetic circuits")
+            circuits = [create_sample_circuit() for _ in range(3)]
+        else:
+            logger.info(f"Loaded {len(circuits)} circuits from MQTBench presets")
+    except Exception as e:
+        logger.warning(f"Failed to load MQTBench circuits: {e}; using synthetic circuits")
+        circuits = [create_sample_circuit() for _ in range(3)]
+
+    # Create tasks from the loaded circuits. We repeat circuits if needed to reach desired task count.
+    task_count = 20
     tasks = []
-    for i in range(20):
-        circuit = create_sample_circuit()
+    for i in range(task_count):
+        base_circ = circuits[i % len(circuits)]
+        # Try to copy the circuit to avoid mutating the same object
+        try:
+            circuit = base_circ.copy()
+        except Exception:
+            # fallback if copy is not available
+            circuit = base_circ
+
         # Tasks arrive randomly between 0 and 50 time units
         arrival_time = random.uniform(0, 50)
-        task = QuantumTask(f"task_{i}", circuit, arrival_time)
+        task = QuantumTask(i, circuit, arrival_time)
         tasks.append(task)
     
     logger.info(f"Created {len(tasks)} sample tasks")
