@@ -1,11 +1,16 @@
 """
 Example demonstrating the queue-based orchestrator with batch processing.
+Results are saved to a CSV file for analysis.
 """
 
 import simpy
 from qiskit import QuantumCircuit
 import random
 import time
+import pandas as pd
+from datetime import datetime
+import os
+from pathlib import Path
 
 from src.qschedulers.cloud.orchestrator import Orchestrator
 from src.qschedulers.cloud.qnode import QuantumNode
@@ -61,21 +66,69 @@ def main():
     # Run the simulation for 100 time units
     env.run(until=100)
     
-    # Print results
+    # Convert results to DataFrame for analysis
+    results_df = pd.DataFrame(orchestrator.results)
+    
+    # Calculate and log summary statistics
     logger.info("\nSimulation Results:")
-    completed = sum(1 for r in orchestrator.results if r["status"] == "success")
-    failed = sum(1 for r in orchestrator.results if r["status"] == "failed")
+    completed = len(results_df[results_df['status'] == 'success'])
+    failed = len(results_df[results_df['status'] == 'failed'])
     logger.info(f"Total tasks: {len(tasks)}")
     logger.info(f"Completed tasks: {completed}")
     logger.info(f"Failed tasks: {failed}")
     
-    # Calculate average waiting and turnaround times for completed tasks
-    completed_results = [r for r in orchestrator.results if r["status"] == "success"]
-    if completed_results:
-        avg_waiting = sum(r["waiting_time"] for r in completed_results) / len(completed_results)
-        avg_turnaround = sum(r["turnaround_time"] for r in completed_results) / len(completed_results)
+    # Calculate statistics for completed tasks
+    completed_df = results_df[results_df['status'] == 'success']
+    if not completed_df.empty:
+        avg_waiting = completed_df['waiting_time'].mean()
+        avg_turnaround = completed_df['turnaround_time'].mean()
         logger.info(f"Average waiting time: {avg_waiting:.2f}")
         logger.info(f"Average turnaround time: {avg_turnaround:.2f}")
+        
+        # Add more statistics
+        stats_df = pd.DataFrame({
+            'Metric': [
+                'Min Waiting Time',
+                'Max Waiting Time',
+                'Avg Waiting Time',
+                'Min Turnaround Time',
+                'Max Turnaround Time',
+                'Avg Turnaround Time',
+                'Min Execution Time',
+                'Max Execution Time',
+                'Avg Execution Time',
+                'Success Rate (%)'
+            ],
+            'Value': [
+                completed_df['waiting_time'].min(),
+                completed_df['waiting_time'].max(),
+                avg_waiting,
+                completed_df['turnaround_time'].min(),
+                completed_df['turnaround_time'].max(),
+                avg_turnaround,
+                completed_df['exec_time_est'].min(),
+                completed_df['exec_time_est'].max(),
+                completed_df['exec_time_est'].mean(),
+                (completed / len(tasks)) * 100
+            ]
+        })
+        
+        # Create results directory if it doesn't exist
+        results_dir = Path(__file__).parent.parent.parent / 'results'
+        results_dir.mkdir(exist_ok=True)
+        
+        # Generate timestamp for unique filenames
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Save detailed results
+        results_file = results_dir / f'quantum_scheduling_results_{timestamp}.csv'
+        results_df.to_csv(results_file, index=False)
+        logger.info(f"\nDetailed results saved to: {results_file}")
+        
+        # Save summary statistics
+        stats_file = results_dir / f'quantum_scheduling_stats_{timestamp}.csv'
+        stats_df.to_csv(stats_file, index=False)
+        logger.info(f"Summary statistics saved to: {stats_file}")
 
 if __name__ == "__main__":
     main()
