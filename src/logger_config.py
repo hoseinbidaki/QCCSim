@@ -28,9 +28,16 @@ LOGGING_CONFIG = {
             'encoding': 'utf8'
         },
     },
+    'loggers': {
+        'qiskit': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False
+        }
+    },
     'root': {
         'handlers': ['console', 'file'],
-        'level': 'DEBUG',
+        'level': 'INFO',
     },
 }
 
