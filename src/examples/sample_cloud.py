@@ -3,7 +3,7 @@ import simpy.core as sp
 import csv
 from src.qschedulers.cloud.qnode import QuantumNode
 from src.qschedulers.cloud.qtask import QuantumTask
-from src.qschedulers.schedulers import Scheduler, RoundRobinScheduler
+from src.qschedulers.schedulers import RoundRobinScheduler
 from src.qschedulers.cloud.orchestrator import Orchestrator
 
 

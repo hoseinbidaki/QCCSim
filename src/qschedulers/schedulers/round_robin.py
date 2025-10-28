@@ -35,7 +35,13 @@ class RoundRobinScheduler(Scheduler):
             assignments.append((task_id, backend))
             self._counter += 1
 
-        logger.info(f"Completed scheduling. Assignments: {assignments}")
+        # Log assignments with task IDs and backend names
+        assignment_details = [
+            f"Task {task_id} -> {qnode.backend.name}"
+            for task_id, qnode in assignments
+        ]
+        logger.info(f"Completed scheduling. Assignments: {', '.join(assignment_details)}")
+        
         return {
             "assignments": assignments,
             "metadata": {
