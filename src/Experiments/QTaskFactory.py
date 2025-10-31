@@ -6,6 +6,7 @@ logger = setup_logger()
 
 random.seed(1234)
 
+
 class QTaskFactory:
     """
     Factory class for creating quantum tasks using MQT Bench benchmarks.
