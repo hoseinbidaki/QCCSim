@@ -3,6 +3,7 @@ from src.qschedulers.cloud.qtask import QuantumTask
 import random
 from src.logger_config import setup_logger
 logger = setup_logger()
+
 random.seed(1234)
 
 class QTaskFactory:
